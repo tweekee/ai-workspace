@@ -4,7 +4,7 @@ An original, cozy pixel office for AI sessions. Local by default, independent of
 
 **Version 0.1.0 is the Milestone 1 foundation. Activity is simulated. Browser and CLI monitoring are not implemented yet.**
 
-![AI Workspace — Maple studio](docs/screenshots/office.png)
+![AI Workspace — Maple studio](docs/screenshots/native-office.png)
 
 ## What works
 

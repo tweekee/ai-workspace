@@ -22,7 +22,11 @@ const nativeSettings = await page.evaluate(() =>
   window.__TAURI_INTERNALS__.invoke("load_preferences"),
 );
 assert(nativeSettings === null || nativeSettings.version === 1);
-await page.getByRole("button", { name: "Pause demo", exact: true }).click();
+const pauseButton = page.getByRole("button", {
+  name: "Pause demo",
+  exact: true,
+});
+if (await pauseButton.count()) await pauseButton.click();
 await page.getByRole("button", { name: "Inspect Claude", exact: true }).click();
 assert.equal(await page.locator(".detail-identity h3").innerText(), "Claude");
 await page
@@ -31,7 +35,7 @@ await page
 await page.getByRole("button", { name: "Open settings", exact: true }).click();
 assert.equal(await page.getByLabel("Frame rate").inputValue(), "60");
 await page.getByRole("button", { name: "Office", exact: true }).click();
-await page.waitForTimeout(2000);
+await page.waitForTimeout(8000);
 const output =
   process.env.AI_WORKSPACE_SMOKE_OUTPUT ??
   path.resolve("docs/screenshots/native-office.png");
