@@ -135,11 +135,11 @@ pub fn install(
     let project = project
         .canonicalize()
         .map_err(|_| "Cannot resolve project folder")?;
-    let exe = executable
+    let executable_path = executable
         .to_string_lossy()
         .trim_start_matches("\\\\?\\")
-        .replace('\\', "/")
-        .replace('\'', "''");
+        .replace('\\', "/");
+    let exe = executable_path.replace('\'', "''");
     let mut written = Vec::new();
     for provider in providers {
         let (folder, file, events): (&str, &str, &[&str]) = match provider {
@@ -228,19 +228,29 @@ pub fn install(
                 .or_insert_with(|| serde_json::json!([]))
                 .as_array_mut()
                 .ok_or("Existing hook event must be an array")?;
-            entries.retain(|entry| {
-                !entry["hooks"].as_array().is_some_and(|a| {
-                    a.iter().any(|h| {
-                        h["command"].as_str().is_some_and(|c| {
-                            c.contains("--report-hook")
-                                && c.to_ascii_lowercase().contains("ai-workspace")
-                        })
-                    })
-                })
-            });
-            entries.push(
-                serde_json::json!({"hooks":[{"type":"command","command":command,"timeout":if *provider == Provider::Gemini { 3000 } else { 3 }}]}),
-            );
+            // Remove only our handlers; retain unrelated handlers in a shared group.
+            for entry in entries.iter_mut() {
+                if let Some(handlers) = entry.get_mut("hooks").and_then(Value::as_array_mut) {
+                    handlers.retain(|handler| {
+                        let ours = handler["command"].as_str().is_some_and(|c| {
+                            c.to_ascii_lowercase().contains("ai-workspace")
+                                && (c.contains("--report-hook")
+                                    || handler["args"].as_array().is_some_and(|args| {
+                                        args.iter().any(|a| a.as_str() == Some("--report-hook"))
+                                    }))
+                        });
+                        !ours
+                    });
+                }
+            }
+            entries.retain(|entry| entry["hooks"].as_array().is_none_or(|a| !a.is_empty()));
+            let handler = if *provider == Provider::Claude {
+                // Supported exec form avoids Git Bash and shell quoting on Windows.
+                serde_json::json!({"type":"command","command":executable_path,"args":["--report-hook",name],"timeout":3})
+            } else {
+                serde_json::json!({"type":"command","command":command,"timeout":if *provider == Provider::Gemini { 3000 } else { 3 }})
+            };
+            entries.push(serde_json::json!({"hooks":[handler]}));
         }
         if let Some(bytes) = previous {
             fs::write(dir.join(format!("{file}.ai-workspace-backup")), bytes)

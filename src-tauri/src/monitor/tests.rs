@@ -273,7 +273,7 @@ fn all_cli_lifecycle_categories_are_supported() {
 fn hook_install_preserves_existing_settings_and_is_idempotent() {
     let dir = tempfile::tempdir().unwrap();
     fs::create_dir(dir.path().join(".claude")).unwrap();
-    let old = json!({"permissions":{"allow":["Read"]},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo existing"}]}]}});
+    let old = json!({"permissions":{"allow":["Read"]},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo existing"},{"type":"command","command":"C:/old/ai-workspace.exe","args":["--report-hook","claude"]}]}]}});
     fs::write(
         dir.path().join(".claude/settings.local.json"),
         serde_json::to_vec(&old).unwrap(),
@@ -301,6 +301,21 @@ fn hook_install_preserves_existing_settings_and_is_idempotent() {
         serde_json::from_slice(&fs::read(dir.path().join(".codex/hooks.json")).unwrap()).unwrap();
     assert_eq!(codex["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"], 3);
     assert!(codex["hooks"].get("Notification").is_none());
+    assert_eq!(
+        settings["hooks"]["Stop"][0]["hooks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        settings["hooks"]["Stop"][0]["hooks"][0]["command"],
+        "echo existing"
+    );
+    assert_eq!(
+        settings["hooks"]["Stop"][1]["hooks"][0]["args"],
+        json!(["--report-hook", "claude"])
+    );
     assert_eq!(settings["permissions"], old["permissions"]);
     assert_eq!(settings["hooks"]["Stop"].as_array().unwrap().len(), 2);
     assert!(dir

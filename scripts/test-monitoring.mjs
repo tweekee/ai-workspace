@@ -77,6 +77,42 @@ try {
       .click();
     pairCode = (await page.locator(".pairing-code code").innerText()).trim();
     report.nativePairingUI = true;
+    const hookProject = path.join(directory, "hook-project");
+    await mkdir(hookProject, { recursive: true });
+    await page
+      .getByRole("textbox", { name: "CLI project folder" })
+      .fill(hookProject);
+    await page
+      .getByRole("checkbox", { name: "Claude Code", exact: true })
+      .check();
+    await page
+      .getByRole("checkbox", { name: "Gemini CLI", exact: true })
+      .check();
+    await page
+      .getByRole("button", { name: "Install project hooks", exact: true })
+      .click();
+    await until(
+      async () =>
+        /Hooks installed in 3/.test(
+          await page.locator(".connection-message").innerText(),
+        ),
+      "Native project hook installation",
+    );
+    const claudeSettings = JSON.parse(
+      await readFile(
+        path.join(hookProject, ".claude/settings.local.json"),
+        "utf8",
+      ),
+    );
+    const geminiSettings = JSON.parse(
+      await readFile(path.join(hookProject, ".gemini/settings.json"), "utf8"),
+    );
+    assert.deepEqual(claudeSettings.hooks.SessionStart[0].hooks[0].args, [
+      "--report-hook",
+      "claude",
+    ]);
+    assert.equal(geminiSettings.hooks.BeforeTool[0].hooks[0].timeout, 3000);
+    report.nativeHookInstallUI = true;
   } else {
     pairCode = await until(() => {
       const line = output.split(/\r?\n/).find((l) => l.startsWith('{"'));

@@ -1,5 +1,6 @@
 {
   "nativePairingUI": true,
+  "nativeHookInstallUI": true,
   "extension": {
     "loaded": true,
     "pairing": true,
@@ -39,12 +40,12 @@
     "mode": "fresh unauthenticated Chromium profile; no prompt sent",
     "observations": [
       {
-        "provider": "claude",
+        "provider": "chatgpt",
         "state": "unknown",
         "evidence": "page-unavailable"
       },
       {
-        "provider": "chatgpt",
+        "provider": "claude",
         "state": "unknown",
         "evidence": "page-unavailable"
       },

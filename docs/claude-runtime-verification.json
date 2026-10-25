@@ -1,0 +1,12 @@
+{
+  "version": "2.1.304",
+  "runtime": "Installed native Claude Code, isolated settings/profile",
+  "actualSessionStartHooks": 2,
+  "uniqueSessions": true,
+  "nativeProcessBinding": true,
+  "terminationCleanup": true,
+  "userMessagesSent": 0,
+  "modelInference": false,
+  "providerEndpoint": "closed loopback port; no external model endpoint",
+  "limitations": "Tool/permission/completion transitions are contract fixtures; Node package owner matching not exercised"
+}

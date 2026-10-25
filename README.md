@@ -13,7 +13,7 @@ The screenshot uses provider DOM and hook-contract fixtures to exercise the actu
 | ChatGPT in Chrome | Visible generation, composer idle, explicit approval waiting, unknown UI, tab disconnect | Actual loaded extension and native pipeline with DOM fixtures; authenticated generation not checked |
 | Claude / Gemini in Chrome | Same conservative DOM adapter model | Provider-specific fixtures; authenticated pages not checked |
 | Codex CLI | Project hooks, individual sessions, state/task mapping, PID/start-time exit detection | Installed Codex 0.164.0: two actual startup sessions and process cleanup; tools/approval via contract fixtures |
-| Claude Code | Project hooks and Node/native ancestor binding | Hook configuration/classification/reporter contract tested; installed-runtime lifecycle not verified |
+| Claude Code | Project hooks and Node/native ancestor binding | Installed Claude 2.1.304: two actual startup sessions, native owner binding and process cleanup; tool states via contract fixtures |
 | Gemini CLI | Project hooks and Node/native ancestor binding | Hook configuration/classification/reporter contract tested; Gemini CLI is not installed in the test environment |
 | Cursor / Ollama | Unavailable | No adapter or simulated fallback |
 
@@ -23,7 +23,7 @@ The screenshot uses provider DOM and hook-contract fixtures to exercise the actu
 2. Unzip the supplied Chrome extension into a permanent folder. At chrome://extensions, enable Developer mode, choose **Load unpacked**, and select browser-extension.
 3. In the desktop app choose **Generate pairing code**, then enter the eight-character code in the extension popup. It expires after two minutes. Reload existing AI tabs once after loading the extension.
 4. Open ChatGPT, Claude or Gemini in that paired Chrome profile. Each tab gets its own character. Generating requires a recognized visible stop control; unrecognized/login/challenge pages stay **Unknown**, never fake working.
-5. For a CLI, enter an existing project folder in **Connect**, choose providers and click **Install project hooks**. Existing JSON is merged and backed up. Start a new CLI session in that folder. In Codex, trust the project through the normal CLI flow and review/trust the installed definitions via **/hooks**. Managed policy or disabled/untrusted hooks can prevent reporting.
+5. For a CLI, enter an existing project folder in **Connect**, choose providers and click **Install project hooks**. Existing JSON is merged and backed up. Start a new CLI session in that folder. In Codex, trust the project through the normal CLI flow and review/trust the installed definitions via **/hooks**. Claude interactive sessions also require their normal workspace trust dialog. Managed policy or disabled/untrusted hooks can prevent reporting.
 
 The app must stay open. A running process alone does not imply a model is working. Sessions launched before hooks are installed are not reconstructed from historical logs; later supported events may detect them. Keep the executable at its installed location because project hooks reference that absolute path. Reinstall hooks after moving it. To remove hooks, remove only entries containing --report-hook from the project's provider JSON, or restore a reviewed backup. Browser pairings can be revoked in Connect.
 
@@ -64,7 +64,7 @@ npm run monitor:test
 
 The monitoring test launches the actual native bridge, loads the built extension, pairs through its popup, verifies four simultaneous browser tabs and CLI reporter events, rejects web-origin writes and checks metadata filtering. Provider pages are local fixtures and do not call models. With a release build set AI_WORKSPACE_TEST_EXE to its absolute path and run node scripts/test-monitoring.mjs --desktop to also test the native WebView2 UI. The optional --live-sites checks only fresh unauthenticated pages without sending prompts.
 
-Optional installed Codex test: set AI_WORKSPACE_CODEX_EXE to codex.exe and run node scripts/verify-codex-lifecycle.mjs. It uses an isolated QA profile, a local-only provider endpoint, reviewed hooks with the documented one-off hook-trust flag, and a second startup hook that stops execution before inference. Normal product installation never bypasses hook trust or tool approvals.
+Optional installed Codex test: set AI_WORKSPACE_CODEX_EXE to codex.exe and run node scripts/verify-codex-lifecycle.mjs. It uses an isolated QA profile, a local-only provider endpoint, reviewed hooks with the documented one-off hook-trust flag, and a second startup hook that stops execution before inference. Normal product installation never bypasses hook trust or tool approvals. For the optional installed Claude Code check, set AI_WORKSPACE_CLAUDE_EXE to claude.exe and run node scripts/verify-claude-lifecycle.mjs. It opens two isolated stream-input sessions, sends only SDK initialization controls and no user messages, and verifies startup plus process cleanup. Claude hooks use its supported direct-executable format, with no Git Bash dependency.
 
 ## Office controls
 
