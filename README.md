@@ -61,7 +61,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 ```
 
-Browser tests cover rendering and animation, zero remote requests, teammate inspection, state progression, assignment, appearance, persistence, furniture dragging, live-mode honesty, navigation, diagnostics, and 1024/768/390px layouts. Browser tests do not exercise Tauri IPC.
+Browser tests cover rendering and animation, zero remote requests, teammate inspection, state progression, assignment, appearance, persistence, furniture dragging, live-mode honesty, navigation, diagnostics, and 1024/768/390px layouts. Browser tests use the production build under the native CSP. The optional native smoke script checks the compiled WebView2 app and read-only preference IPC. See the milestone report for what was actually executed.
 
 ## Roadmap
 

@@ -32,7 +32,9 @@ Date: 2026-10-25. Version: 0.1.0.
 - Browser coverage: rendering and changing animation frames; teammate inspection; explicit demo transitions; unavailable token usage; outfit changes; desk assignment; native-free preview persistence; live/demo separation; draggable desks and persisted layout; session filters; timeline; connector limits; diagnostics download; no remote runtime requests; 1024/768/390px overflow checks.
 - `cargo test --manifest-path src-tauri/Cargo.toml`: **7 native tests passed**. Covers complete settings, field allowlist, version, size limit, frame rate, unique desks, and appearance validation.
 - Native Rust compilation succeeded with a workspace-local Rust 1.99.1 toolchain. No global toolchain install was performed.
-- Rust Clippy and Windows installer build: **in progress at report preparation**. Final results will be appended before handoff.
+- Rust Clippy with warnings denied: **passed**.
+- Optimized Windows executable: **compiled**. Native launch exposed a CSP conflict, fixed with Pixi static adapters. Native smoke verification is being rerun.
+- NSIS installer packaging on this sandbox host: **blocked**. Both official makensis launchers fail with Windows error 623 (Illegal System DLL Relocation). Copying the hash-verified tools into the workspace resolved a separate cache rename restriction but did not resolve native tool launch. The Windows CI build runs on a separate runner.
 - Screenshots reviewed at desktop and mobile widths. Floor clipping corrected after visual inspection.
 
 ## Known limits
@@ -46,3 +48,5 @@ No production release or version tag has been published.
 ## Next priority
 
 Milestone 2: restricted-domain MV3 extension, an explicitly paired authenticated loopback bridge, schema-validated tab lifecycle events, and adapter tests with ChatGPT, Claude, and Gemini DOM fixtures. Real-site checks must identify which visible indicators can actually be observed. No claim of internal model activity.
+
+Browser tests now exercise the production build under the same strict CSP as Tauri. An animation assertion that aliased periodic frames was replaced with a bounded changed-frame observation and passed three repeated runs.

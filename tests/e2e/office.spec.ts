@@ -8,7 +8,7 @@ test("office renders, animates, selects teammates and contains no remote request
   page.on("request", (r) => {
     if (
       /^https?:/.test(r.url()) &&
-      !r.url().startsWith("http://127.0.0.1:1420")
+      !r.url().startsWith("http://127.0.0.1:4174")
     )
       remote.push(r.url());
   });
@@ -21,9 +21,15 @@ test("office renders, animates, selects teammates and contains no remote request
   await page.getByRole("button", { name: "Pause demo", exact: true }).click();
   await page.waitForTimeout(7000);
   const first = await page.locator("canvas").screenshot();
-  await page.waitForTimeout(400);
-  const second = await page.locator("canvas").screenshot();
-  expect(first.equals(second)).toBe(false);
+  await expect
+    .poll(
+      async () => {
+        const nextFrame = await page.locator("canvas").screenshot();
+        return !first.equals(nextFrame);
+      },
+      { timeout: 5000, intervals: [120, 230, 330] },
+    )
+    .toBe(true);
   await page
     .getByRole("button", { name: "Inspect Claude", exact: true })
     .click();

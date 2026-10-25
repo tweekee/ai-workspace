@@ -60,3 +60,7 @@ FPS is a target, not a measured guarantee. CPU, memory, battery, and hardware-le
 ## Packaging
 
 CI tests frontend behavior and compiles the Windows shell on Windows runners. The release workflow runs on version tags and creates a draft prerelease only after test/build success. It does not sign installers or publish production claims. No updater, elevated installer, background server, or startup entry is installed.
+
+## Content security policy validation
+
+The native policy does not allow eval. PixiJS static shader/uniform adapters are imported through pixi.js/unsafe-eval; despite the package name, these replace dynamic compilation with static routines. The production preview serves the same CSP, and all browser interaction tests run against that production build. This catches native policy regressions before packaging.

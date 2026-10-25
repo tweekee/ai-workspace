@@ -1,3 +1,5 @@
+// Pixi’s static uniform/shader adapters avoid eval under Tauri’s strict CSP.
+import "pixi.js/unsafe-eval";
 import {
   Application,
   Container,

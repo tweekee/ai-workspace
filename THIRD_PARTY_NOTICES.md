@@ -16,6 +16,7 @@ Direct dependencies retain their own licenses:
 | Inter font, bundled via Fontsource     | SIL OFL-1.1       | https://github.com/rsms/inter                      |
 | Fontsource packaging                   | MIT               | https://github.com/fontsource/fontsource           |
 | Playwright                             | Apache-2.0        | https://github.com/microsoft/playwright            |
+| Prettier                               | MIT               | https://github.com/prettier/prettier               |
 | Vitest                                 | MIT               | https://github.com/vitest-dev/vitest               |
 | Serde and serde_json                   | MIT OR Apache-2.0 | https://github.com/serde-rs                        |
 | Node and React type definitions        | MIT               | https://github.com/DefinitelyTyped/DefinitelyTyped |

@@ -4,14 +4,14 @@ export default defineConfig({
   timeout: 30000,
   fullyParallel: false,
   use: {
-    baseURL: "http://127.0.0.1:1420",
+    baseURL: "http://127.0.0.1:4174",
     headless: true,
     viewport: { width: 1440, height: 1000 },
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:1420",
+    command: "npm run preview -- --port 4174 --strictPort",
+    url: "http://127.0.0.1:4174",
     reuseExistingServer: !process.env.CI,
   },
   reporter: [["list"], ["html", { open: "never" }]],
