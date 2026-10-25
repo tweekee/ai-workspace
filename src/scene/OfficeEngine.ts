@@ -208,7 +208,9 @@ export class OfficeEngine {
           sprite = new Sprite(),
           ring = new Graphics();
         const label = new Text({
-          text: providerNames[agent.provider],
+          text:
+            providerNames[agent.provider] +
+            (agent.source === "demo" ? "" : " · " + agent.sessionId.slice(-4)),
           style: {
             fontFamily: "monospace",
             fontSize: 6,
@@ -243,7 +245,7 @@ export class OfficeEngine {
           label,
           badge,
           ring,
-          position: { x: 256 + i * 16, y: 328 },
+          position: { x: 232 + (i % 4) * 16, y: 328 },
           path: [],
           goal: "",
           index: i,
@@ -276,7 +278,11 @@ export class OfficeEngine {
       return w.index % 2 ? { x: 64, y: 312 } : { x: 400, y: 144 };
     const id = settings.assignments[a.id] ?? "desk-" + ((w.index % 4) + 1);
     const desk = settings.furniture.find((d) => d.id === id)!;
-    return { x: desk.x + 38, y: desk.y + 58 };
+    const lane = Math.floor(w.index / 4);
+    return {
+      x: desk.x + (lane === 0 ? 38 : lane % 2 ? 20 : 58),
+      y: desk.y + 58 + Math.floor(lane / 3) * 8,
+    };
   }
   private tick(dt: number) {
     if (this.disposed) return;
@@ -333,7 +339,7 @@ export class OfficeEngine {
           this.input.settings.appearances[a.id] ?? looks[w.index % 4];
         const f = reduce ? 0 : frame % 4;
         w.sprite.texture = this.texture(
-          [outfit, f, behavior, w.index].join("-"),
+          [outfit, f, behavior, w.index % 4].join("-"),
           () => characterArt(outfit, f, behavior, w.index),
         );
         w.badge.text = walking

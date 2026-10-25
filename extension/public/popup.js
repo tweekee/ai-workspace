@@ -1,0 +1,5 @@
+const status=document.querySelector("#status");
+async function update(){const s=await chrome.runtime.sendMessage({type:"status"});status.textContent=s.error??(s.paired?(s.lastSuccess?"Connected locally · "+s.tabs+" supported tabs":"Paired · waiting for supported tabs"):"Not paired. Use a code from the desktop app.");}
+document.querySelector("#pair-form").addEventListener("submit",async event=>{event.preventDefault();status.textContent="Pairing…";const r=await chrome.runtime.sendMessage({type:"pair",code:document.querySelector("#code").value});if(r?.error)status.textContent=r.error;else{document.querySelector("#code").value="";await update();}});
+document.querySelector("#refresh").addEventListener("click",async()=>{await chrome.runtime.sendMessage({type:"refresh"});await update();});
+void update();

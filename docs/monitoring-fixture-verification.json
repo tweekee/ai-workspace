@@ -1,0 +1,35 @@
+{
+  "extension": {
+    "loaded": true,
+    "pairing": true,
+    "simultaneousTabs": 4,
+    "providers": [
+      "chatgpt",
+      "claude",
+      "gemini"
+    ],
+    "states": [
+      "idle",
+      "working",
+      "waiting",
+      "offline"
+    ],
+    "testSource": "local DOM fixtures at supported URL origins; no provider model requests"
+  },
+  "cli": {
+    "providers": [
+      "codex",
+      "claude",
+      "gemini"
+    ],
+    "reporterExecutable": true,
+    "hookContracts": true,
+    "privacyFiltering": true,
+    "verification": "provider hook-contract fixtures; not inference or installed CLI runtime"
+  },
+  "http": {
+    "authentication": true,
+    "webOriginRejected": true
+  },
+  "llmRequests": 0
+}

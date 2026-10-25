@@ -1,3 +1,5 @@
+pub mod monitor;
+mod storage;
 use serde_json::Value;
 use std::{fs, io::Write};
 use tauri::{AppHandle, Manager};
@@ -85,10 +87,7 @@ fn validate(value: &Value) -> Result<(), String> {
 
 #[tauri::command]
 fn load_preferences(app: AppHandle) -> Result<Option<Value>, String> {
-    let folder = app
-        .path()
-        .app_config_dir()
-        .map_err(|_| "Configuration directory unavailable")?;
+    let folder = data_folder(&app)?;
     let file = folder.join("preferences.json");
     if !file.exists() {
         return Ok(None);
@@ -118,15 +117,62 @@ fn save_preferences(app: AppHandle, preferences: Value) -> Result<(), String> {
         .map_err(|_| "Cannot write preferences")?;
     file.sync_all().map_err(|_| "Cannot flush preferences")?;
     drop(file);
-    fs::rename(&temporary, folder.join("preferences.json"))
+    storage::commit_file(&temporary, &folder.join("preferences.json"))
         .map_err(|_| "Cannot save preferences")?;
     Ok(())
 }
 
+fn data_folder(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    if std::env::var_os("AI_WORKSPACE_DATA_DIR").is_some() {
+        return Ok(monitor::default_folder());
+    }
+    app.path()
+        .app_config_dir()
+        .map_err(|_| "Configuration directory unavailable".into())
+}
+#[tauri::command]
+fn monitor_snapshot(state: tauri::State<monitor::Monitor>) -> monitor::Snapshot {
+    state.snapshot()
+}
+#[tauri::command]
+fn start_browser_pairing(
+    state: tauri::State<monitor::Monitor>,
+) -> Result<monitor::PairCode, String> {
+    state.pair_code()
+}
+#[tauri::command]
+fn revoke_browser_pairing(state: tauri::State<monitor::Monitor>) -> Result<(), String> {
+    state.revoke()
+}
+#[tauri::command]
+fn install_project_hooks(
+    project_dir: String,
+    providers: Vec<monitor::model::Provider>,
+) -> Result<Vec<String>, String> {
+    let executable =
+        std::env::current_exe().map_err(|_| "Cannot locate AI Workspace executable")?;
+    monitor::hooks::install(std::path::Path::new(&project_dir), &providers, &executable)
+}
+pub fn report_hook(provider: monitor::model::Provider) {
+    monitor::hooks::report(provider, monitor::default_folder());
+}
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![load_preferences, save_preferences])
+        .setup(|app| {
+            let folder = data_folder(app.handle()).map_err(std::io::Error::other)?;
+            let service = monitor::Monitor::start(folder).map_err(std::io::Error::other)?;
+            app.manage(service);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            load_preferences,
+            save_preferences,
+            monitor_snapshot,
+            start_browser_pairing,
+            revoke_browser_pairing,
+            install_project_hooks
+        ])
         .run(tauri::generate_context!())
         .expect("AI Workspace could not start");
 }

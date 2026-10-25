@@ -1,66 +1,46 @@
 # Architecture
 
-## Stack decision
+Tauri 2/Rust owns local monitoring and native preferences. React/strict TypeScript validates snapshots. PixiJS 8 draws the existing original pixel office. Assets and fonts are bundled; no model API or cloud backend is used.
 
-Tauri 2 + Rust provides the Windows shell without bundling a second browser runtime. TypeScript strict mode and React keep UI state separate from rendering. PixiJS 8 renders the original pixel art using WebGL and nearest-neighbor texture sampling. Vite builds the local frontend. No paid infrastructure is needed.
+## Data flow
 
-Official references reviewed before implementation:
+Chrome content scripts → MV3 worker → authenticated loopback HTTP → Rust registry → Tauri IPC → React + Pixi
 
-- [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
-- [Tauri upstream source and licensing](https://github.com/tauri-apps/tauri)
-- [PixiJS Application initialization](https://pixijs.com/8.x/guides/components/application)
-- [PixiJS upstream source and MIT license](https://github.com/pixijs/pixijs)
+Opted-in CLI hooks → native --report-hook mode → authenticated loopback HTTP → same registry
 
-No reference-product source code or sprites are included.
+DemoDirector → separate synthetic registry → React + Pixi (only in explicitly selected demo mode)
 
-## Boundaries
+## Browser observation
 
-```text
-React views ── validated preferences ── Tauri IPC ── fixed app config file
-    │
-    ├── DemoDirector ── AgentRegistry ── session snapshots
-    │                         ↑
-    │                    metadata boundary
-    │                  future adapter modules
-    └── OfficeEngine ── PixiJS ── original Canvas-generated textures
-```
+extension/src/adapters.ts recognizes visible provider controls conservatively. content.ts sends state changes and periodic metadata; background.ts validates the sender, derives the provider from the actual tab URL, owns credentials, and serializes updates. Browser-run UUID plus provider and tab ID distinguish simultaneous tabs. Session storage survives MV3 worker suspension. Alarms poll current tab state, and tab lifecycle events disconnect removed tabs. Unsupported UI stays unknown. No transcript/text is collected.
 
-- `src/core/model.ts`: bounded strict metadata schema, provider identifiers, state and task vocabulary, transition table.
-- `src/core/registry.ts`: per-source stable IDs, monotonic sequences, freshness checks, source identity, liveness expiry, history retention.
-- `src/core/demo.ts`: explicit synthetic event source. It cannot call a model or inspect a process.
-- `src/core/settings.ts`: versioned preference schema and serialized writes; browser preview fallback.
-- `src/core/layout.ts`: desk placement bounds and collision validation.
-- `src/scene/art.ts`: all original raster pixel art generated once into cached textures.
-- `src/scene/navigation.ts`: bounded four-direction grid path search around furniture.
-- `src/scene/OfficeEngine.ts`: scene lifecycle, animation, interactions, z-order, resizing, visibility suspension.
-- `src-tauri`: a small Rust command surface, fixed configuration path, size-capped metadata persistence; no filesystem or process plugin exposed.
+## Native bridge and sessions
 
-## State machine
+src-tauri/src/monitor/mod.rs binds 127.0.0.1:38471, validates Host/Origin, pairs an extension through native-generated short-lived codes, and authenticates separate browser/hook credentials. Bodies are capped at 32 KiB; batches at 64, browsers at 8, request rate at 128/second and active registry entries at 128. JSON is strict. Browser timestamps older than 45 seconds or over 10 seconds in the future and repeated sequences are rejected. See tests for origin binding, replay, size limits, lockout, expiry and multi-session isolation.
 
-States: `offline → detected → idle → thinking → working → waiting → completed → idle`.
+model.rs stores per-source session records and 50-entry histories. Browser silence expires after 75 seconds. CLI ownership binds PID + process start time; termination or PID reuse disconnects a session. Unbound hooks are labelled limited-liveness, become unknown after 45 seconds and disconnect after 120. Completed transitions back to idle after three seconds. Offline records are retained for one minute. No historical session is synthesized from old logs.
 
-Transitions branch according to explicit evidence. `unknown` remains distinct. Offline is produced by disconnect events or heartbeat expiry. A heartbeat confirms only transport liveness and never implies a model is working. Stale metadata cannot create a session. Source plus session ID forms the registry key. A session must reconnect after expiry. History is capped at 50 changes; offline removal is explicit.
+process.rs inspects only a hook reporter's ancestor chain and then monitors its matched owner PID. It does not infer working state from a running process. hooks.rs classifies supported lifecycle events, filters the raw input, hashes session IDs, reports through short-deadline local TCP and always returns advisory {}. It installs project-local hooks by merging backed-up settings, without modifying global trust or permission decisions. Claude uses its documented direct-executable command+args form to avoid a Git Bash dependency on Windows. Codex hook definitions require the user's normal /hooks review; installation does not bypass trust.
 
-The registry is integration-ready infrastructure. Milestone 1 feeds it only synthetic demo events. There is no active browser bridge, process watcher, session-log reader, or adapter claiming real activity.
+## UI and rendering
 
-## Future connector contracts
+src/core/live.ts validates the native IPC snapshot. Real sources are labelled Browser · real and CLI · real; demo is explicitly simulated. The same states drive sidebar, history, details and office animation. Multiple sessions of one provider remain distinct, with ID suffixes on labels and staggered desk positions. Generating maps to working/response animation; tools map to reading, editing or terminal; approval maps to waiting. Unknown/offline do not keep a working animation. A native IPC failure makes stale sessions unknown.
 
-Adapters should emit versioned metadata events, never full conversations. Browser tab IDs must include a browser-instance nonce; close events should disconnect them. A future local bridge must bind only loopback, authenticate a paired extension, validate origin and message sizes, and reject replay. It is not started in this build.
+The four-desk design, artwork, palette choices, customization and render caps are preserved. Static textures are cached; character frames update at 5 FPS, motion renders at 15/30/60 FPS. Hidden windows suspend drawing. Reduced motion avoids walking. Browser preview is UI-only and cannot fetch loopback monitoring endpoints.
 
-MV3 content scripts should be restricted to supported hosts. DOM indicators are evidence of visible UI only, not internal model thought. Hooks/log adapters must correlate fresh session activity with process liveness and never resurrect historical logs. Unknown and limited detection are first-class outcomes.
+## Tests and packaging
 
-Token usage may be displayed only with official-log or official-API evidence. No estimates or cost calculations are implemented.
+npm test covers the original state/layout foundation. Playwright covers UI/CSP/viewport regressions. Rust tests cover native persistence, hook configuration/classification, privacy filtering, registry lifecycle and bridge authorization. scripts/test-monitoring.mjs loads the actual built MV3 extension in Chromium, pairs it with the native Windows executable and exercises local provider DOM fixtures plus native hook reporters. --desktop additionally drives the compiled WebView2 UI and saves a screenshot. These fixtures do not prove authenticated provider-site behavior. scripts/verify-codex-lifecycle.mjs separately probes an installed Codex runtime without starting a model turn. verify-claude-lifecycle.mjs separately initializes two installed native Claude Code sessions with no user message and verifies startup/termination.
 
-## Rendering and performance
+Windows CI runs frontend/native tests, loaded-extension bridge integration and NSIS packaging. Version tags create draft prereleases. No updater or startup agent is installed, and installers are unsigned. See MILESTONES-2-3.md for actual results and provider limitations.
 
-Static art and animation frames are cached as textures. Character textures change at 5 FPS; movement renders at the selected 15/30/60 FPS cap. Motion stops while the window is hidden. Pixel art uses no filters, shaders, external imagery, or network fonts. Reduced motion places workers at their destination and caps rendering at 15 FPS. The scene is a small 512×368 logical canvas, scaled to the available area.
+## Primary references
 
-FPS is a target, not a measured guarantee. CPU, memory, battery, and hardware-level performance are not yet benchmarked. Scene positions and activity history are not persisted.
-
-## Packaging
-
-CI tests frontend behavior and compiles the Windows shell on Windows runners. The release workflow runs on version tags and creates a draft prerelease only after test/build success. It does not sign installers or publish production claims. No updater, elevated installer, background server, or startup entry is installed.
-
-## Content security policy validation
-
-The native policy does not allow eval. PixiJS static shader/uniform adapters are imported through pixi.js/unsafe-eval; despite the package name, these replace dynamic compilation with static routines. The production preview serves the same CSP, and all browser interaction tests run against that production build. This catches native policy regressions before packaging.
+- https://learn.chatgpt.com/docs/hooks
+- https://learn.chatgpt.com/docs/app-server
+- https://code.claude.com/docs/en/hooks
+- https://geminicli.com/docs/hooks/reference/
+- https://developer.chrome.com/docs/extensions/develop/concepts/network-requests
+- https://playwright.dev/docs/chrome-extensions
+- https://v2.tauri.app/start/prerequisites/
+- https://pixijs.com/8.x/guides/components/application

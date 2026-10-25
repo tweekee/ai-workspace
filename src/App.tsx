@@ -30,6 +30,8 @@ import {
   X,
 } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
+import { Connections } from "./Connections";
+import { readLive, sourceLabel, type LiveSnapshot } from "./core/live";
 import { DemoDirector } from "./core/demo";
 import {
   providerNames,
@@ -142,26 +144,6 @@ function ProviderIcon({ provider }: { provider: string }) {
     </span>
   );
 }
-const integrationRows = [
-  [
-    "Browser extension",
-    "ChatGPT · Claude · Gemini",
-    "Milestone 2",
-    "Browser tabs are not monitored in this build.",
-  ],
-  [
-    "Local coding agents",
-    "Codex CLI · Claude Code · Gemini CLI",
-    "Milestone 3",
-    "No process or session log scanning is enabled.",
-  ],
-  [
-    "Cursor & local models",
-    "Cursor · Ollama · custom adapters",
-    "Planned",
-    "Detection is unavailable in this build.",
-  ],
-];
 
 export function App() {
   const [settings, setSettings] = useState<Settings>(structuredClone(defaults));
@@ -176,6 +158,42 @@ export function App() {
     [now, setNow] = useState(Date.now());
   const [toast, setToast] = useState(""),
     [filter, setFilter] = useState("all");
+  const [live, setLive] = useState<LiveSnapshot>({
+    sessions: [],
+    bridge: { listening: false, port: 38471, pairedBrowsers: 0, error: null },
+  });
+  useEffect(() => {
+    let active = true;
+    let timer: number;
+    const poll = async () => {
+      try {
+        const snapshot = await readLive();
+        if (active) setLive(snapshot);
+      } catch {
+        if (active)
+          setLive((previous) => ({
+            ...previous,
+            sessions: previous.sessions.map((a) => ({
+              ...a,
+              state: "unknown",
+              task: "none",
+              evidence: "native-connection-lost",
+            })),
+            bridge: {
+              ...previous.bridge,
+              listening: false,
+              error: "Native monitoring is unavailable. Restart AI Workspace.",
+            },
+          }));
+      }
+      if (active) timer = window.setTimeout(poll, 1000);
+    };
+    void poll();
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, []);
   const director = useRef<DemoDirector | null>(null),
     lastAdvance = useRef(Date.now()),
     audio = useRef<AudioContext | null>(null);
@@ -203,11 +221,20 @@ export function App() {
       setSelected("demo:codex-studio");
     } else {
       director.current = null;
-      setSessions([]);
-      setSelected(null);
+      setSessions(live.sessions);
+      setSelected(live.sessions[0]?.id ?? null);
     }
     lastAdvance.current = Date.now();
   }, [loaded, settings.demo]);
+  useEffect(() => {
+    if (!loaded || settings.demo) return;
+    setSessions(live.sessions);
+    setSelected((old) =>
+      live.sessions.some((a) => a.id === old)
+        ? old
+        : (live.sessions[0]?.id ?? null),
+    );
+  }, [live, loaded, settings.demo]);
   const chime = () => {
     if (!settingsRef.current.sound || !audio.current) return;
     const a = audio.current;
@@ -291,7 +318,7 @@ export function App() {
     setToast(
       value
         ? "Demo office opened. All activity is simulated."
-        : "Demo stopped. Real integrations are not connected.",
+        : "Live monitoring enabled. Open Connect to pair your browser or install CLI hooks.",
     );
   };
   const move = (id: string, x: number, y: number) => {
@@ -306,14 +333,15 @@ export function App() {
   };
   const assign = (agent: AgentSession, desk: string) => {
     const i = sessions.indexOf(agent),
-      old = settings.assignments[agent.id] ?? "desk-" + (i + 1);
+      old = settings.assignments[agent.id] ?? "desk-" + ((i % 4) + 1);
     const assignments = {
       ...settings.assignments,
       [agent.id]: desk as Settings["assignments"][string],
     };
     const other = sessions.find(
       (a, j) =>
-        a.id !== agent.id && (assignments[a.id] ?? "desk-" + (j + 1)) === desk,
+        a.id !== agent.id &&
+        (assignments[a.id] ?? "desk-" + ((j % 4) + 1)) === desk,
     );
     if (other) assignments[other.id] = old as Settings["assignments"][string];
     update({ assignments });
@@ -321,12 +349,16 @@ export function App() {
   const download = () => {
     const report = {
       app: "AI Workspace",
-      version: "0.1.0",
+      version: "0.2.0",
       runtime: isTauri() ? "tauri" : "browser-preview",
-      mode: settings.demo ? "demo" : "live-unconnected",
+      mode: settings.demo ? "demo" : "real-monitoring",
       sessionCount: sessions.length,
       renderer: "PixiJS WebGL",
-      integrations: { browser: "not-implemented", local: "not-implemented" },
+      integrations: {
+        browser: "observable-dom",
+        local: "project-hooks",
+        bridge: live.bridge,
+      },
       preferences: settings,
     };
     const url = URL.createObjectURL(
@@ -368,7 +400,7 @@ export function App() {
           <span className="local-mark">
             <ShieldCheck size={14} /> Local by design
           </span>
-          <span className="version">v0.1.0</span>
+          <span className="version">v0.2.0</span>
           <button
             className="icon-button"
             aria-label="Open settings"
@@ -428,7 +460,7 @@ export function App() {
                 {view === "office"
                   ? settings.demo
                     ? "A small studio for your AI team. All activity here is simulated."
-                    : "Your studio is ready. Connectors are coming in the next milestones."
+                    : "Live, local activity from your browser tabs and coding sessions."
                   : view === "settings"
                     ? "Make a little room for the way you work."
                     : view === "connections"
@@ -441,7 +473,11 @@ export function App() {
             <div className="heading-actions">
               <span className={"mode-tag" + (!settings.demo ? " live" : "")}>
                 <span />
-                {settings.demo ? "Demo mode" : "Live · unconnected"}
+                {settings.demo
+                  ? "Demo mode"
+                  : live.bridge.listening
+                    ? "Live monitoring"
+                    : "Desktop required"}
               </span>
               {view === "office" && (
                 <button
@@ -482,7 +518,11 @@ export function App() {
                         ) : (
                           <>
                             <Monitor size={13} />
-                            {sessions.length} simulated sessions
+                            {
+                              sessions.filter((a) => a.state !== "offline")
+                                .length
+                            }{" "}
+                            {settings.demo ? "simulated" : "real"} sessions
                           </>
                         )}
                       </span>
@@ -499,12 +539,17 @@ export function App() {
                     {sessions.length === 0 && (
                       <div className="empty-office">
                         <h3>Your team hasn’t arrived yet</h3>
-                        <p>Real monitoring is not available in Milestone 1.</p>
+                        <p>
+                          {live.bridge.listening
+                            ? "Pair a browser or install project hooks in Connect."
+                            : (live.bridge.error ??
+                              "Starting local monitoring…")}
+                        </p>
                         <button
                           className="button primary"
-                          onClick={() => setDemo(true)}
+                          onClick={() => nav("connections")}
                         >
-                          Explore the demo <ArrowRight size={14} />
+                          Connect your tools <ArrowRight size={14} />
                         </button>
                       </div>
                     )}
@@ -556,7 +601,7 @@ export function App() {
                             {h.state === "working"
                               ? taskLabels[h.task].toLowerCase()
                               : stateLabels[h.state].toLowerCase()}
-                            <em>Simulated</em>
+                            <em>{sourceLabel(h.agent)}</em>
                           </span>
                           <time>{ago(now - h.at)}</time>
                         </div>
@@ -647,7 +692,9 @@ export function App() {
                                 {duration(now - a.startedAt)}
                               </td>
                               <td>
-                                <span className="source-label">Simulated</span>
+                                <span className="source-label">
+                                  {sourceLabel(a)}
+                                </span>
                               </td>
                             </tr>
                           ))}
@@ -678,7 +725,9 @@ export function App() {
                             : stateLabels[h.state]}
                         </small>
                       </span>
-                      <span className="source-label">Simulated</span>
+                      <span className="source-label">
+                        {sourceLabel(h.agent)}
+                      </span>
                       <time>
                         {new Date(h.at).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -696,62 +745,13 @@ export function App() {
                 </section>
               )}
               {view === "connections" && (
-                <>
-                  <div className="connection-intro">
-                    <ShieldCheck size={23} />
-                    <div>
-                      <h2>Your computer. Your conversations.</h2>
-                      <p>
-                        Core animation runs locally without model inference.
-                        This foundation build does not read your tabs,
-                        processes, files, or conversation contents.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="connections-list">
-                    {integrationRows.map(
-                      ([title, subtitle, status, description]) => (
-                        <section className="connection-row" key={title}>
-                          <span className="connection-symbol">
-                            {title === "Browser extension" ? (
-                              <Monitor />
-                            ) : title === "Local coding agents" ? (
-                              <Terminal />
-                            ) : (
-                              <Link2 />
-                            )}
-                          </span>
-                          <div>
-                            <h2>{title}</h2>
-                            <p>{subtitle}</p>
-                            <small>{description}</small>
-                          </div>
-                          <span className="limited-tag">
-                            {status} · unavailable
-                          </span>
-                        </section>
-                      ),
-                    )}
-                  </div>
-                  <div className="connection-bottom">
-                    <p>
-                      Until connectors are implemented, live mode shows an empty
-                      office.
-                    </p>
-                    <button
-                      className="button"
-                      onClick={() => {
-                        setDemo(!settings.demo);
-                        nav("office");
-                      }}
-                    >
-                      {settings.demo
-                        ? "Switch to live mode"
-                        : "Open the demo office"}{" "}
-                      <ArrowRight size={14} />
-                    </button>
-                  </div>
-                </>
+                <Connections
+                  live={live}
+                  openLive={() => {
+                    setDemo(false);
+                    nav("office");
+                  }}
+                />
               )}
               {view === "settings" && (
                 <div className="settings-content">
@@ -823,7 +823,7 @@ export function App() {
                     </p>
                     <Toggle
                       label="Completion sound"
-                      description="A soft chime when a simulated task finishes."
+                      description="A soft chime when a demo task finishes."
                       value={settings.sound}
                       onChange={(sound) => {
                         if (sound && !audio.current)
@@ -897,8 +897,8 @@ export function App() {
               </h2>
               <p>
                 {settings.demo
-                  ? "A few familiar faces."
-                  : "Waiting for a connection."}
+                  ? "A few fictional faces."
+                  : "Real sessions, separate identities."}
               </p>
             </div>
             <button
@@ -938,10 +938,20 @@ export function App() {
                     {a.state === "working"
                       ? taskLabels[a.task]
                       : a.state === "thinking"
-                        ? "Working through an idea"
+                        ? a.source === "demo"
+                          ? "Working through an idea"
+                          : "Preparing a response"
                         : a.state === "waiting"
                           ? "Ready for your input"
-                          : "A moment at the coffee corner"}
+                          : a.source === "demo"
+                            ? "A moment at the coffee corner"
+                            : a.state === "offline"
+                              ? "Session disconnected"
+                              : a.state === "unknown"
+                                ? "Detection uncertain"
+                                : a.state === "completed"
+                                  ? "Task completed"
+                                  : "No observable activity"}
                   </span>
                   <State state={a.state} />
                 </span>
@@ -954,7 +964,8 @@ export function App() {
               <Armchair size={32} />
               <h3>A seat for every session</h3>
               <p>
-                Browser and local monitoring are not connected in this build.
+                No real sessions detected. Connect a supported browser tab or
+                restart a CLI with project hooks installed.
               </p>
               <button className="button" onClick={() => setDemo(true)}>
                 Try the demo
@@ -965,7 +976,7 @@ export function App() {
             <section className="agent-details">
               <div className="section-title">
                 <h2>At their desk</h2>
-                <span className="source-label">Simulated</span>
+                <span className="source-label">{sourceLabel(chosen)}</span>
               </div>
               <div className="detail-identity">
                 <Avatar
@@ -980,8 +991,16 @@ export function App() {
                     {chosen.provider === "codex"
                       ? "Coding assistant"
                       : "AI assistant"}{" "}
-                    · demo session
+                    · {sourceLabel(chosen).toLowerCase()} session
                   </span>
+                  {chosen.evidence && (
+                    <small className="evidence-label">
+                      {chosen.integration} · {chosen.evidence}
+                      {chosen.confidence === "limited-liveness"
+                        ? " · limited liveness"
+                        : ""}
+                    </small>
+                  )}
                 </div>
               </div>
               <dl>
@@ -1016,7 +1035,7 @@ export function App() {
                   aria-label="Assign workstation"
                   value={
                     settings.assignments[chosen.id] ??
-                    "desk-" + (sessions.indexOf(chosen) + 1)
+                    "desk-" + ((sessions.indexOf(chosen) % 4) + 1)
                   }
                   onChange={(e) => assign(chosen, e.target.value)}
                 >
@@ -1052,12 +1071,14 @@ export function App() {
                   ))}
                 </div>
               </div>
-              <button
-                className="button advance"
-                onClick={() => advance(chosen.id)}
-              >
-                Advance demo state <ArrowRight size={13} />
-              </button>
+              {chosen.source === "demo" && (
+                <button
+                  className="button advance"
+                  onClick={() => advance(chosen.id)}
+                >
+                  Advance demo state <ArrowRight size={13} />
+                </button>
+              )}
             </section>
           )}
           <div className="sidebar-foot">
@@ -1075,8 +1096,10 @@ export function App() {
         <span>
           <i className={settings.demo ? "demo-dot" : "neutral-dot"} />
           {settings.demo
-            ? "Simulated office · no live monitoring"
-            : "Live mode · connectors unavailable"}
+            ? "Simulated office · separate from real sessions"
+            : live.bridge.listening
+              ? "Real monitoring · local metadata only"
+              : "Browser preview · native monitoring unavailable"}
           <span className="footer-separator">/</span>
           {isTauri() ? "Windows desktop" : "Browser preview"}
         </span>
