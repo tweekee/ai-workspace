@@ -1,82 +1,75 @@
 # AI Workspace
 
-An original, cozy pixel office for AI sessions. Local by default, independent of Wallpaper Engine, and free to run.
+A local pixel office for real browser AI tabs and CLI sessions. Version 0.2.0 adds a Chrome MV3 extension, authenticated local bridge, project-scoped CLI hooks, per-session characters and live activity history while preserving the original office design. Fresh installations open in live mode; the optional demo is explicitly simulated.
 
-**Version 0.1.0 is the Milestone 1 foundation. Activity is simulated. Browser and CLI monitoring are not implemented yet.**
+![Native office with monitoring inputs](docs/screenshots/real-monitoring-native.png)
 
-![AI Workspace — Maple studio](docs/screenshots/native-office.png)
+The screenshot uses provider DOM and hook-contract fixtures to exercise the actual extension, native bridge and Windows UI. See [the exact validation report](docs/MILESTONES-2-3.md).
 
-## What works
+## Integrations
 
-- PixiJS office with original pixel art, four distinct animated workers, workstations, library, coffee counter, lounge, and meeting nook.
-- Walking around furniture, typing, reading, terminal work, waiting, coffee breaks, and celebration animations driven by session state.
-- Validated metadata registry, explicit state transitions, source isolation, heartbeat expiry, and bounded in-memory history.
-- Functional team sidebar, session details, timeline, session filtering, workstation assignment, outfit selection, and draggable desks with collision checks.
-- Maple and dusk palettes, 15/30/60 FPS targets, reduced motion, labels, optional completion chime, and pauseable demo.
-- Preferences persist in browser storage for preview and the app configuration directory on desktop.
-- Tauri 2 Windows shell, original application icon, NSIS installer configuration, automated frontend tests and Windows CI.
+| Integration | Implemented | Verification |
+| --- | --- | --- |
+| ChatGPT in Chrome | Visible generation, composer idle, explicit approval waiting, unknown UI, tab disconnect | Actual loaded extension and native pipeline with DOM fixtures; authenticated generation not checked |
+| Claude / Gemini in Chrome | Same conservative DOM adapter model | Provider-specific fixtures; authenticated pages not checked |
+| Codex CLI | Project hooks, individual sessions, state/task mapping, PID/start-time exit detection | Installed Codex 0.164.0: two actual startup sessions and process cleanup; tools/approval via contract fixtures |
+| Claude Code | Project hooks and Node/native ancestor binding | Hook configuration/classification/reporter contract tested; installed-runtime lifecycle not verified |
+| Gemini CLI | Project hooks and Node/native ancestor binding | Hook configuration/classification/reporter contract tested; Gemini CLI is not installed in the test environment |
+| Cursor / Ollama | Unavailable | No adapter or simulated fallback |
 
-## Run the interactive preview
+## Start monitoring on Windows
 
-Install [Node.js 24 LTS](https://nodejs.org/) and run:
+1. Run the Windows app. WebView2 is required. Open **Connect**.
+2. Unzip the supplied Chrome extension into a permanent folder. At chrome://extensions, enable Developer mode, choose **Load unpacked**, and select browser-extension.
+3. In the desktop app choose **Generate pairing code**, then enter the eight-character code in the extension popup. It expires after two minutes. Reload existing AI tabs once after loading the extension.
+4. Open ChatGPT, Claude or Gemini in that paired Chrome profile. Each tab gets its own character. Generating requires a recognized visible stop control; unrecognized/login/challenge pages stay **Unknown**, never fake working.
+5. For a CLI, enter an existing project folder in **Connect**, choose providers and click **Install project hooks**. Existing JSON is merged and backed up. Start a new CLI session in that folder. In Codex, trust the project through the normal CLI flow and review/trust the installed definitions via **/hooks**. Managed policy or disabled/untrusted hooks can prevent reporting.
 
-```powershell
-npm ci
-npm run dev
-```
+The app must stay open. A running process alone does not imply a model is working. Sessions launched before hooks are installed are not reconstructed from historical logs; later supported events may detect them. Keep the executable at its installed location because project hooks reference that absolute path. Reinstall hooks after moving it. To remove hooks, remove only entries containing --report-hook from the project's provider JSON, or restore a reviewed backup. Browser pairings can be revoked in Connect.
 
-Open [the local preview](http://127.0.0.1:1420). This runs the actual application UI and renderer in a browser. It does not validate the native shell. Fonts and assets are bundled; no external services are contacted by the application.
+Default data: %APPDATA%/io.github.tweekee.aiworkspace. Do not share bridge-credentials.json. The bridge uses authenticated HTTP on 127.0.0.1:38471 only. It never calls an LLM. Close another app instance if the port is occupied. See [privacy](docs/PRIVACY.md) for retained metadata and local-account security limits.
 
-## Run the Windows desktop app
+## Build and run
 
-Required: Windows 10/11, [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/), stable Rust (minimum 1.90), Microsoft C++ Build Tools with the **Desktop development with C++** workload and Windows SDK, and WebView2.
+Install Node.js 24, stable Rust (minimum 1.90), Microsoft C++ Build Tools with Desktop development with C++, Windows SDK and WebView2; see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-```powershell
+~~~powershell
 npm ci
 npm run desktop:dev
-```
-
-Build the NSIS installer:
-
-```powershell
+# Build Windows NSIS installer and unpacked extension:
 npm run desktop:build
-```
+~~~
 
-The output is `src-tauri/target/release/bundle/nsis/*-setup.exe`. Unsigned builds may trigger Windows SmartScreen. No installer should be treated as production-ready without native testing. See [milestone validation](docs/MILESTONE-1.md) for the exact results.
+Native output: src-tauri/target/release/ai-workspace.exe and bundle/nsis/*-setup.exe. Extension output: browser-extension/. The installer is unsigned. Windows CI also uploads installer and extension artifacts.
 
-## Explore the office
+~~~powershell
+npm run dev
+~~~
 
-Select a teammate in the room or sidebar to inspect their session. **Advance demo state** advances one fictional task. **Pause demo** freezes state progression; character animation continues. **Customize** lets you drag desks within the studio rug; invalid placements are rejected. Desk assignment swaps occupants when necessary.
-
-Settings save automatically. Live mode removes simulated sessions and shows an empty office until real connectors exist. Token usage remains **Unavailable** unless authoritative usage metadata is supplied; the demo supplies none.
+The browser preview at http://127.0.0.1:1420 runs the renderer and demo but explicitly cannot monitor local native sessions. Use the Windows executable for real activity. Fonts, artwork and runtime assets are bundled.
 
 ## Validation
 
-```powershell
+~~~powershell
 npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
-```
+cargo build --manifest-path src-tauri/Cargo.toml
+npm run monitor:test
+~~~
 
-Browser tests cover rendering and animation, zero remote requests, teammate inspection, state progression, assignment, appearance, persistence, furniture dragging, live-mode honesty, navigation, diagnostics, and 1024/768/390px layouts. Browser tests use the production build under the native CSP. The optional native smoke script checks the compiled WebView2 app and read-only preference IPC. See the milestone report for what was actually executed.
+The monitoring test launches the actual native bridge, loads the built extension, pairs through its popup, verifies four simultaneous browser tabs and CLI reporter events, rejects web-origin writes and checks metadata filtering. Provider pages are local fixtures and do not call models. With a release build set AI_WORKSPACE_TEST_EXE to its absolute path and run node scripts/test-monitoring.mjs --desktop to also test the native WebView2 UI. The optional --live-sites checks only fresh unauthenticated pages without sending prompts.
 
-## Roadmap
+Optional installed Codex test: set AI_WORKSPACE_CODEX_EXE to codex.exe and run node scripts/verify-codex-lifecycle.mjs. It uses an isolated QA profile, a local-only provider endpoint, reviewed hooks with the documented one-off hook-trust flag, and a second startup hook that stops execution before inference. Normal product installation never bypasses hook trust or tool approvals.
 
-| Milestone | Scope                                                                       | Status                                              |
-| --------- | --------------------------------------------------------------------------- | --------------------------------------------------- |
-| 1         | Desktop foundation, pixel office, demo, state machine, preferences          | Implemented; validation details in milestone report |
-| 2         | Restricted-domain Chrome MV3 extension and authenticated local bridge       | Not implemented                                     |
-| 3         | Active Codex CLI, Claude Code, Gemini CLI sessions; lifecycle detection     | Not implemented                                     |
-| 4         | Further animation polish, native notifications, optional fictional dialogue | Partial visual foundation only                      |
-| 5         | Native smoke tests, performance profiling, validated versioned installer    | Build workflow prepared; no release published       |
+## Office controls
 
-Cursor, Ollama, custom adapters, startup integration, and native notifications are unavailable in this version. There is no hidden fake fallback.
+Each session appears separately in the room, sidebar, activity history and session table. Select a character to see source, observed state/evidence, project basename, liveness confidence and history. Reading, editing, terminal, response and waiting states drive the existing animations. More than four sessions share staggered positions around the four desks. Offline characters remain briefly for context before removal.
 
-## Architecture & privacy
+Themes, frame caps, reduced motion, labels, furniture placement and outfits remain available. Demo can be enabled in Settings and shows a separate **Simulated** office. No fictional activity is injected into live sessions. Token/cost data remain unavailable. Notifications, autostart, non-Windows CLI hook installation, incognito monitoring and automatic extension installation are unsupported.
 
-See [architecture](docs/ARCHITECTURE.md), [privacy](docs/PRIVACY.md), [contributing](CONTRIBUTING.md), and [dependency attribution](THIRD_PARTY_NOTICES.md).
-
-Original code, artwork, and icon are MIT licensed. No proprietary office sprites, competitor code, provider logos, or third-party visual assets were copied. Provider names identify planned integrations, not endorsement.
+See [architecture](docs/ARCHITECTURE.md), [privacy](docs/PRIVACY.md), [M1 history](docs/MILESTONE-1.md), and [dependency attribution](THIRD_PARTY_NOTICES.md). Original application code, procedural pixel art and icon are MIT licensed. No proprietary provider logos or competitor assets are included.

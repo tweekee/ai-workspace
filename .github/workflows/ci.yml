@@ -1,4 +1,4 @@
-name: Validate desktop foundation
+name: Validate AI Workspace
 on:
   push:
     branches: [main, "feat/**"]
@@ -47,6 +47,14 @@ jobs:
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+      - run: cargo build --manifest-path src-tauri/Cargo.toml
+      - run: npx playwright install chromium
+      - run: npm run monitor:test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-workspace-chrome-extension
+          path: browser-extension/
+          if-no-files-found: error
       - run: npm run desktop:build
       - uses: actions/upload-artifact@v4
         with:

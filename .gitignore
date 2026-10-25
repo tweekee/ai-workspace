@@ -8,3 +8,8 @@ playwright-report/
 *.log
 .env*
 !.env.example
+
+browser-extension/
+bridge-credentials.*
+*.ai-workspace-backup
+*.ai-workspace-tmp

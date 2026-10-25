@@ -34,7 +34,7 @@ export const settingsSchema = z
 export type Settings = z.infer<typeof settingsSchema>;
 export const defaults: Settings = {
   version: 1,
-  demo: true,
+  demo: false,
   fps: 60,
   effects: true,
   reducedMotion: false,

@@ -1,0 +1,13 @@
+{
+  "version": "0.164.0",
+  "runtime": "Installed Codex CLI exec; isolated QA profile",
+  "actualSessionStartHooks": 2,
+  "uniqueSessions": true,
+  "processBinding": true,
+  "terminationCleanup": true,
+  "modelTurnsCompleted": 0,
+  "modelInference": false,
+  "providerEndpoint": "closed loopback port; no external model endpoint",
+  "trust": "One-off documented hook-trust flag for reviewed QA hooks only; user trust unchanged",
+  "limitations": "Generating/tool/approval transitions use hook-contract fixtures, not paid model turns"
+}

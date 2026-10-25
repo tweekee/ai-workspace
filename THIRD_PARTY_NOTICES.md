@@ -18,6 +18,14 @@ Direct dependencies retain their own licenses:
 | Playwright                             | Apache-2.0        | https://github.com/microsoft/playwright            |
 | Prettier                               | MIT               | https://github.com/prettier/prettier               |
 | Vitest                                 | MIT               | https://github.com/vitest-dev/vitest               |
+| Axum                                   | MIT               | https://github.com/tokio-rs/axum |
+| Tokio                                  | MIT               | https://github.com/tokio-rs/tokio |
+| sysinfo                                | MIT               | https://github.com/GuillaumeGomez/sysinfo |
+| getrandom                              | MIT OR Apache-2.0 | https://github.com/rust-random/getrandom |
+| sha2                                   | MIT OR Apache-2.0 | https://github.com/RustCrypto/hashes |
+| subtle                                 | BSD-3-Clause      | https://github.com/dalek-cryptography/subtle |
+| tempfile (tests)                       | MIT OR Apache-2.0 | https://github.com/Stebalien/tempfile |
+| Chrome type definitions (build)        | MIT               | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | Serde and serde_json                   | MIT OR Apache-2.0 | https://github.com/serde-rs                        |
 | Node and React type definitions        | MIT               | https://github.com/DefinitelyTyped/DefinitelyTyped |
 

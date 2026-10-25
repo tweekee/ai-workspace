@@ -1,4 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { defaults } from "../../src/core/settings";
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(
+    (value) => {
+      if (!localStorage.getItem("ai-workspace.preferences.v1"))
+        localStorage.setItem(
+          "ai-workspace.preferences.v1",
+          JSON.stringify(value),
+        );
+    },
+    { ...defaults, demo: true },
+  );
+});
 test("office renders, animates, selects teammates and contains no remote requests", async ({
   page,
 }) => {
@@ -91,9 +104,7 @@ test("saved settings survive reload; live mode never shows fake sessions", async
   await expect(page.locator(".agent-row")).toHaveCount(0);
   await page.reload();
   await expect(page.locator(".agent-row")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Explore the demo", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Try the demo", exact: true }).click();
   await expect(page.locator(".agent-row")).toHaveCount(4);
 });
 test("office furniture can be dragged and persists", async ({ page }) => {
@@ -136,7 +147,9 @@ test("sessions, activity, connection availability and diagnostics work", async (
   await page.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(page.locator(".timeline-row").first()).toBeVisible();
   await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(page.getByText("Milestone 2 · unavailable")).toBeVisible();
+  await expect(
+    page.getByText("Desktop required", { exact: true }).last(),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Open settings", exact: true })
     .click();

@@ -16,7 +16,7 @@ export type Provider = (typeof providers)[number];
 export const stateLabels: Record<AgentState, string> = {
   offline: "Offline",
   detected: "Detected",
-  idle: "On a break",
+  idle: "Idle",
   thinking: "Thinking",
   working: "Working",
   waiting: "Needs input",
@@ -78,6 +78,9 @@ export interface AgentSession {
   project?: string;
   usage?: AgentEvent["usage"];
   history: HistoryItem[];
+  evidence?: string;
+  confidence?: "observed" | "limited-liveness";
+  integration?: string;
 }
 export const taskLabels: Record<Task, string> = {
   none: "No active task",
